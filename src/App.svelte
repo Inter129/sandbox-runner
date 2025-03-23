@@ -27,7 +27,11 @@
     const date = new Date();
     // format as HH:MM:SS
     const time = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}:${date.getSeconds().toString().padStart(2, "0")}`;
-    logs = [[time, message, color], ...logs];
+    logs = [...logs, [time, message, color]];
+
+    // scroll to bottom
+    const terminal = document.querySelector(".terminal") as HTMLDivElement;
+    terminal.scrollTop = terminal.scrollHeight;
   };
 
   onMount(async () => {
@@ -50,7 +54,8 @@
     });
 
     loadCode(
-      `console.log("Hello, World!");
+      `// 여기에 코드를 작성할 수 있어요!
+console.log("Hello, World!");
 console.info("Hello, World!");
 console.error("Hello, World!");
 console.warn("Hello, World!");`,
@@ -65,14 +70,15 @@ console.warn("Hello, World!");`,
 
   const save = async () => {
     // save to local storage
+    log("로그 | 코드를 저장하는 중입니다...");
     const code = model.getValue();
-    log("Formatting code...");
     const formattedCode = await prettier.format(code, {
       parser: "babel",
       plugins: [babel, esTree],
     });
     localStorage.setItem("code", formattedCode);
     loadCode(formattedCode, "javascript");
+    log("성공 | 코드가 성공적으로 저장되었습니다.", "#C3E88D");
   };
 
   const clearConsole = () => {
@@ -81,14 +87,15 @@ console.warn("Hello, World!");`,
 
   const load = () => {
     // load from local storage
-    log("Loading code from local storage");
+    log("로그 | 코드를 불러오는 중입니다...");
     const code = localStorage.getItem("code") || "";
     loadCode(code, "javascript");
+    log("성공 | 코드를 성공적으로 불러왔습니다.", "#C3E88D");
   };
 
   const download = () => {
     // download as file
-    log("Downloading code.js");
+    log("로그 | 코드를 다운로드하는 중입니다...");
     const code = model.getValue();
     const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -97,6 +104,7 @@ console.warn("Hello, World!");`,
     a.download = "code.js";
     a.click();
     URL.revokeObjectURL(url);
+    log("성공 | 코드가 성공적으로 다운로드되었습니다.", "#C3E88D");
   };
 
   const loadFromFile = () => {
@@ -104,7 +112,7 @@ console.warn("Hello, World!");`,
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".js";
-    log("Please select a file to load");
+    log("로그 | 파일을 선택해주세요.");
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
@@ -112,6 +120,7 @@ console.warn("Hello, World!");`,
         reader.onload = (e) => {
           const code = e.target?.result as string;
           loadCode(code, "javascript");
+          log("성공 | 파일을 성공적으로 불러왔습니다.", "#C3E88D");
         };
         reader.readAsText(file);
       }
@@ -122,7 +131,7 @@ console.warn("Hello, World!");`,
   const run = () => {
     clearConsole();
     log(
-      "logu | =================== Running code ===================",
+      "로그 | =================== 코드 실행중 ===================",
       "#727779"
     );
     let code2run = `
@@ -157,21 +166,25 @@ console.warn("Hello, World!");`,
     iframe.style.display = "none";
     document.body.appendChild(iframe);
 
-    let iframeHTML: string = [
-      "<html>",
-      "<head>",
-      `<script src="https://cdnjs.cloudflare.com/ajax/libs/fetch-jsonp/1.0.6/fetch-jsonp.min.js"></scr` +
-        `ipt>`,
-      "<script>",
-      code2run,
-      "</sc" + "ript>", // ㅁㅊ?
-      "</head>",
-      "<body>",
-      "</body>",
-      "</html>",
-    ].join("");
-    let iframeURL = "data:text/html;base64," + btoa(iframeHTML);
-    iframe.src = iframeURL;
+    // let iframeHTML: string = [
+    //   "<html>",
+    //   "<head>",
+    //   `<script src="https://cdnjs.cloudflare.com/ajax/libs/fetch-jsonp/1.0.6/fetch-jsonp.min.js"></scr` +
+    //     `ipt>`,
+    //   "<script>",
+    //   code2run,
+    //   "</sc" + "ript>", // ㅁㅊ?
+    //   "</head>",
+    //   "<body>",
+    //   "</body>",
+    //   "</html>",
+    // ].join("");
+
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.appendChild(
+      iframe.contentWindow.document.createElement("script")
+    ).textContent = code2run;
+    iframe.contentWindow.document.close();
 
     const messageListener = (e: MessageEvent) => {
       if (e.source === iframe.contentWindow) {
@@ -180,9 +193,13 @@ console.warn("Hello, World!");`,
         if (typeof data == "undefined") return;
         if (type === "done") {
           log(
+            "로그 | =================== 코드 실행끝 ===================",
+            "#727779"
+          );
+          log(
             data.s
-              ? "sucs | Code executed successfully"
-              : "eror | Code execution failed",
+              ? "성공 | 코드가 정상적으로 실행되었습니다."
+              : "오류 | 코드 실행 중 오류가 발생했습니다.",
             data.s ? "#C3E88D" : "#FF6464"
           );
           if (!data.s) {
@@ -202,16 +219,16 @@ console.warn("Hello, World!");`,
       if (typeof type != "string") return;
       if (typeof data == "undefined") return;
       if (type == "log") {
-        log("logu | " + data);
+        log("로그 | " + data);
       }
       if (type == "error") {
-        log("eror | " + data, "#FF6464");
+        log("오류 | " + data, "#FF6464");
       }
       if (type == "warn") {
-        log("warn | " + data, "#FFCB6B");
+        log("경고 | " + data, "#FFCB6B");
       }
       if (type == "info") {
-        log("info | " + data, "#81A7FB");
+        log("정보 | " + data, "#81A7FB");
       }
     };
     window.addEventListener("message", messageListener);
@@ -240,8 +257,11 @@ console.warn("Hello, World!");`,
     };
     window.addEventListener("keydown", saveHandler);
 
-    log("logu | Hello! Welcome to the console!");
-    log("logu | Press Ctrl + S to save your code");
+    log(
+      "정보 | 콘솔에 오신 것을 환영합니다! 이곳에서는 코드의 실행 결과를 확인할 수 있습니다."
+    );
+    log("정보 | Ctrl + S를 눌러 코드를 이쁘게 하고 저장 할 수 있습니다.");
+    log("정보 | Ctrl + R를 눌러 코드를 실행 할 수 있습니다.");
 
     return () => window.removeEventListener("keydown", saveHandler);
   });
@@ -260,16 +280,17 @@ console.warn("Hello, World!");`,
       style="width: 100%; height: 100dvh; display: flex; flex-direction: column; background-color: #242A2E; padding: .75rem; gap: .75rem; box-sizing: border-box;"
     >
       <div>
-        <button on:click={save}>Save</button>
-        <button on:click={load}>Load</button>
-        <button on:click={download}>Download</button>
-        <button on:click={loadFromFile}>Load from file</button>
-        <button on:click={run}>Run (ctrl+r)</button>
+        <button on:click={save}>저장</button>
+        <button on:click={load}>불러오기</button>
+        <button on:click={download}>다운로드</button>
+        <button on:click={loadFromFile}>파일로부터 불러오기</button>
+        <button on:click={run}>실행 (Ctrl + R)</button>
       </div>
 
       <!-- Terminal -->
       <div
         style="background: #1A2227; color: #fff; padding: 1rem; width: 100%; overflow-y: auto; flex-grow: 1; box-sizing: border-box; border-radius: .5rem"
+        class="terminal"
       >
         {#each logs as [date, message], i}
           <div
